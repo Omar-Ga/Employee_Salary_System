@@ -7,42 +7,18 @@ import sqlite3
 from datetime import datetime
 import pandas as pd
 import logging
-from access_control import AccessControl
+
 import openpyxl
-import sys # Added for sys.exit()
-from app_lock import ApplicationLock # Added for concurrency control
+
 
 # Configure basic logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s') # Changed level to INFO for more detail
 
 class EmployeeManager(ctk.CTk):
     def __init__(self, *args, **kwargs):
-        # --- Application Lock Check ---
-        # This must happen before any significant initialization, especially GUI.
-        self.app_lock = ApplicationLock()
-        if not self.app_lock.acquire():
-            # Initialize minimal tkinter components just to show the error message
-            try:
-                root = tk.Tk()
-                root.withdraw() # Hide the main tkinter window
-                messagebox.showerror("Application In Use", "Another user is currently running the application.\nPlease try again later.")
-                root.destroy()
-            except Exception as e:
-                # Fallback if GUI elements fail (e.g., no display)
-                logging.error(f"Failed to show messagebox: {e}")
-                print("ERROR: Another user is currently running the application.", file=sys.stderr)
-            sys.exit(1) # Exit if lock not acquired
-        # --- End Application Lock Check ---
 
-        # Check access before initializing (Original time-based check)
-        access_control = AccessControl()
-        if not access_control.check_access():
-            # Ensure lock is released if time check fails after lock acquisition
-            logging.warning("Time-based access check failed after acquiring lock. Releasing lock.")
-            self.app_lock.release()
-            # Potentially show a message here too, depending on desired behavior
-            # messagebox.showerror("Access Denied", "Time limit exceeded or NTP check failed.") # Optional
-            sys.exit()
+
+
 
         super().__init__(*args, **kwargs)
 
@@ -135,18 +111,7 @@ class EmployeeManager(ctk.CTk):
             logging.error(f"Error during main shutdown sequence (before finally block): {e}")
             # Avoid showing messagebox here as the main window might be unstable
         finally:
-            # --- Critical: Release the application lock ---
-            logging.info("Entering finally block for shutdown...")
-            if hasattr(self, 'app_lock'):
-                logging.info("Releasing application lock...")
-                try:
-                    self.app_lock.release()
-                    logging.info("Application lock released successfully.")
-                except Exception as lock_e:
-                    logging.error(f"Error releasing application lock: {lock_e}")
-            else:
-                logging.warning("app_lock attribute not found during on_closing. Lock might not have been acquired or already released.")
-            # --- End Lock Release ---
+
 
             # Now destroy the main application window
             logging.info("Destroying main application window...")
